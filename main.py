@@ -1,7 +1,8 @@
 from datetime import datetime
 from random import seed, choices
 import string
-from fastapi import FastAPI
+from bson import ObjectId
+from fastapi import FastAPI, HTTPException
 from decorum_generator import GameGenerator
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
@@ -9,6 +10,7 @@ from dotenv import load_dotenv
 from os import getenv
 
 from models import Game
+from utils import conditions_dict_arr, player_conditions_dict, conditions_arr
 
 
 load_dotenv()
@@ -17,7 +19,7 @@ app = FastAPI()
 
 MONGO_DB_URI = getenv("MONGO_DB_URI")
 mongo_client = MongoClient(MONGO_DB_URI, server_api=ServerApi("1"))
-mongo_database = mongo_client.decorum
+decorum_database = mongo_client.decorum
 
 
 @app.get("/")
@@ -25,7 +27,7 @@ async def root():
     return {"message": "Hello World"}
 
 
-@app.post("/game")
+@app.post("/games")
 async def game(game: Game):
     seed(None)
 
@@ -38,35 +40,59 @@ async def game(game: Game):
     game_generator.pick_conditions()
     seed(None)
 
-    game_row = {
+    game_doc = {
         **game.dict(),
         "starting_house": game_generator.starting_house.dict(),
         "solution_house": game_generator.solution_house.dict(),
-        "conditions": conditions_arr(game_generator.conditions),
+        "conditions": conditions_dict_arr(game_generator.conditions),
         "players_conditions": player_conditions_dict(game_generator.players_conditions),
         "created_at": datetime.now(),
     }
-    inserted_game = mongo_database.games.insert_one(game_row)
-    
+    inserted_game = decorum_database.games.insert_one(game_doc)
+
     response = {
         "id": str(inserted_game.inserted_id),
         **game.dict(),
+        "created_at": game_doc["created_at"],
     }
     return response
 
 
-def conditions_arr(conditions):
-    return [
-        {
-            "condition": condition.condition,
-            "difficulty_points": condition.difficulty_points,
-        }
-        for condition in conditions
-    ]
+@app.get("/games/{game_id}")
+async def get_game(game_id: str):
+    if not ObjectId.is_valid(game_id):
+        raise HTTPException(status_code=400, detail="Invalid game ID")
 
+    game_doc = decorum_database.games.find_one({"_id": ObjectId(game_id)})
 
-def player_conditions_dict(player_conditions):
-    return {
-        f"p{player_index + 1}": conditions_arr(conditions)
-        for player_index, conditions in enumerate(player_conditions)
+    if not game_doc:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    response = {
+        "id": str(game_doc["_id"]),
+        "num_of_players": game_doc["num_of_players"],
+        "total_difficulty_points": game_doc["total_difficulty_points"],
+        "seed": game_doc["seed"],
+        "created_at": game_doc["created_at"],
     }
+    return response
+
+
+@app.get("/games/{game_id}/{player_id}")
+async def get_player_conditions(game_id: str, player_id: str):
+    if not ObjectId.is_valid(game_id):
+        raise HTTPException(status_code=400, detail="Invalid game ID")
+
+    game_doc = decorum_database.games.find_one({"_id": ObjectId(game_id)})
+
+    if not game_doc:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    player_conditions = game_doc["players_conditions"][player_id]
+
+    if not player_conditions:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    print(player_conditions)
+
+    return player_conditions
