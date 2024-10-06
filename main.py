@@ -15,6 +15,9 @@ async def root():
 
 @app.post("/game")
 async def game(game: Game):
+    if not game.seed:
+        game.seed = str(time())
+
     seed(game.seed)
 
     game_generator = GameGenerator(game.num_of_players, game.total_difficulty_points)
