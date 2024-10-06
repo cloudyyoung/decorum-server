@@ -1,3 +1,4 @@
+from datetime import datetime
 from random import seed, choices
 import string
 from fastapi import FastAPI
@@ -32,10 +33,10 @@ async def game(game: Game):
         game.seed = "".join(choices(string.ascii_letters + string.digits, k=8)).upper()
 
     seed(game.seed)
-
     game_generator = GameGenerator(game.num_of_players, game.total_difficulty_points)
     game_generator.generate_conditions()
     game_generator.pick_conditions()
+    seed(None)
 
     game_row = {
         **game.dict(),
@@ -43,12 +44,15 @@ async def game(game: Game):
         "solution_house": game_generator.solution_house.dict(),
         "conditions": conditions_arr(game_generator.conditions),
         "players_conditions": player_conditions_dict(game_generator.players_conditions),
+        "created_at": datetime.now(),
     }
-    mongo_database.games.insert_one(game_row)
-
-    seed(None)
-
-    return game
+    inserted_game = mongo_database.games.insert_one(game_row)
+    
+    response = {
+        "id": str(inserted_game.inserted_id),
+        **game.dict(),
+    }
+    return response
 
 
 def conditions_arr(conditions):
