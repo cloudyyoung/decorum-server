@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from os import getenv
 
 from models import Game
-from utils import conditions_dict_arr, player_conditions_dict, conditions_arr
+from utils import conditions_dict_arr, player_conditions_dict
 
 
 load_dotenv()
@@ -93,6 +93,5 @@ async def get_player_conditions(game_id: str, player_id: str):
     if not player_conditions:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    print(player_conditions)
-
-    return player_conditions
+    response = {"player_id": player_id, "conditions": player_conditions}
+    return response
