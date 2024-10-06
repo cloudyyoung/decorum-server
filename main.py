@@ -3,6 +3,7 @@ from random import seed, choices
 import string
 from bson import ObjectId
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from decorum_generator import GameGenerator
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
@@ -16,6 +17,13 @@ from utils import conditions_dict_arr, player_conditions_dict
 load_dotenv()
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=True,
+)
 
 MONGO_DB_URI = getenv("MONGO_DB_URI")
 mongo_client = MongoClient(MONGO_DB_URI, server_api=ServerApi("1"))
