@@ -97,9 +97,10 @@ async def get_player_conditions(game_id: str, player_id: str):
         raise HTTPException(status_code=404, detail="Game not found")
 
     player_conditions = game_doc["players_conditions"][player_id]
+    house = game_doc["starting_house"]
 
     if not player_conditions:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    response = {"player_id": player_id, "conditions": player_conditions}
+    response = {"player_id": player_id, "conditions": player_conditions, "house": house}
     return response
