@@ -1,7 +1,9 @@
 from random import randint, seed
 from time import time
 from fastapi import FastAPI
-from decorum_generator import ConditionsGenerator, House
+from decorum_generator import GameGenerator
+
+from models import Game
 
 app = FastAPI()
 
@@ -11,18 +13,12 @@ async def root():
     return {"message": "Hello World"}
 
 
-@app.get("/house")
-async def house():
-    now = time()
-    seed(now)
+@app.post("/game")
+async def game(game: Game):
+    seed(game.seed)
 
-    house = House()
-    house.get_random()
+    game_generator = GameGenerator(game.num_of_players, game.total_difficulty_points)
+    game_generator.generate_conditions()
+    conditions = game_generator.pick_conditions()
 
-    conditions = ConditionsGenerator.generate_all_conditions(house)
-    return {
-        "message": "House",
-        "conditions": conditions,
-        "house": house,
-        "timestamp": now,
-    }
+    return {"game": game}
