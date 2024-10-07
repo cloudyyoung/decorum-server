@@ -5,7 +5,7 @@ import string
 from bson import ObjectId
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from decorum_generator import GameGenerator
+from decorum_generator import ScenarioGenerator
 from pymongo.database import Database
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
@@ -58,7 +58,9 @@ async def game(game: Game, decorum_database=Depends(get_decorum_db)):
         game.seed = "".join(choices(string.ascii_letters + string.digits, k=8)).upper()
 
     seed(game.seed)
-    game_generator = GameGenerator(game.num_of_players, game.total_difficulty_points)
+    game_generator = ScenarioGenerator(
+        game.num_of_players, game.total_difficulty_points
+    )
     game_generator.generate_conditions()
     game_generator.pick_conditions()
     seed(None)
