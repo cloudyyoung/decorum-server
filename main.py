@@ -1,8 +1,9 @@
+from contextlib import asynccontextmanager
 from datetime import datetime
 from random import seed, choices
 import string
 from bson import ObjectId
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from decorum_generator import GameGenerator
 from pymongo.mongo_client import MongoClient
@@ -16,7 +17,19 @@ from utils import conditions_dict_arr, player_conditions_dict
 
 load_dotenv()
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    MONGO_DB_URI = getenv("MONGO_DB_URI")
+    mongo_client = MongoClient(MONGO_DB_URI, server_api=ServerApi("1"))
+    app.mongodb = mongo_client.decorum
+
+    yield
+
+    mongo_client.close()
+
+
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,9 +38,9 @@ app.add_middleware(
     allow_credentials=True,
 )
 
-MONGO_DB_URI = getenv("MONGO_DB_URI")
-mongo_client = MongoClient(MONGO_DB_URI, server_api=ServerApi("1"))
-decorum_database = mongo_client.decorum
+
+def get_decorum_db():
+    return app.mongodb
 
 
 @app.get("/")
@@ -36,7 +49,7 @@ async def root():
 
 
 @app.post("/games")
-async def game(game: Game):
+async def game(game: Game, decorum_database=Depends(get_decorum_db)):
     seed(None)
 
     if not game.seed:
@@ -67,7 +80,7 @@ async def game(game: Game):
 
 
 @app.get("/games/{game_id}")
-async def get_game(game_id: str):
+async def get_game(game_id: str, decorum_database=Depends(get_decorum_db)):
     if not ObjectId.is_valid(game_id):
         raise HTTPException(status_code=400, detail="Invalid game ID")
 
@@ -87,7 +100,9 @@ async def get_game(game_id: str):
 
 
 @app.get("/games/{game_id}/{player_id}")
-async def get_player_conditions(game_id: str, player_id: str):
+async def get_player_conditions(
+    game_id: str, player_id: str, decorum_database=Depends(get_decorum_db)
+):
     if not ObjectId.is_valid(game_id):
         raise HTTPException(status_code=400, detail="Invalid game ID")
 
