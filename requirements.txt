@@ -1,4 +1,5 @@
 fastapi[standard]==0.115.0
 pymongo==4.10.1
+pymongo[srv]
 gunicorn==23.0.0
 git+https://github.com/cloudyyoung/decorum-generator.git
