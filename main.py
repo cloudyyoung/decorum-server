@@ -6,6 +6,7 @@ from bson import ObjectId
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from decorum_generator import GameGenerator
+from pymongo.database import Database
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
@@ -22,7 +23,7 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     MONGO_DB_URI = getenv("MONGO_DB_URI")
     mongo_client = MongoClient(MONGO_DB_URI, server_api=ServerApi("1"))
-    app.mongodb = mongo_client.decorum
+    app.mongo_decorum_db = mongo_client.decorum
 
     yield
 
@@ -39,13 +40,14 @@ app.add_middleware(
 )
 
 
-def get_decorum_db():
-    return app.mongodb
+def get_decorum_db() -> Database:
+    return app.mongo_decorum_db
 
 
 @app.get("/")
-async def root():
-    return {"message": "Hello World"}
+async def root(decorum_database: Database = Depends(get_decorum_db)):
+    collection_names = decorum_database.list_collection_names()
+    return {"message": "Hello World", "collections": collection_names}
 
 
 @app.post("/games")
